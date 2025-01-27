@@ -1,1 +1,5 @@
 wandb/**
+*.json
+models--teknium--OpenHermes-2.5-Mistral-7B/**
+Qwen2-0.5B-DPO/**
+logs/**
