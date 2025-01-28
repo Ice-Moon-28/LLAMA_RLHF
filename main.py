@@ -96,7 +96,7 @@ training_args = DPOConfig(
     learning_rate=5e-5,
     lr_scheduler_type="cosine",
     max_steps=200,
-    save_strategy="no",
+    # save_strategy="no",
     logging_steps=1,
     output_dir=new_model,
     optim="paged_adamw_32bit",
@@ -117,8 +117,6 @@ dpo_trainer = DPOTrainer(
     tokenizer=tokenizer,
     peft_config=peft_config,
 )
-
-import pdb; pdb.set_trace()
 
 # Fine-tune model with DPO
 dpo_trainer.train()
