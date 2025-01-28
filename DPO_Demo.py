@@ -6,7 +6,7 @@ from trl import DPOTrainer, DPOConfig
 
 
 model_name = 'Qwen/Qwen2-0.5B-Instruct'
-cache_dir = "/root/autodl-tmp"
+cache_dir = "Qwen2-0.5B-Instruct"
 tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B-Instruct")
 train_dataset = load_dataset("trl-lib/ultrafeedback_binarized", split="train")
 

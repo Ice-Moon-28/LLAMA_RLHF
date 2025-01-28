@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-from imdb import get_imdb_collect_fn, imdb_pre_process
+from data.imdb import get_imdb_collect_fn, imdb_pre_process
 
 model_name = "teknium/OpenHermes-2.5-Mistral-7B"
 new_model = "DPO_NeuralHermes-2.5-Mistral-7B"
@@ -36,23 +36,33 @@ def create_dataloader(dataset, collect_fn, batch_size=8, shuffle=True):
     )
     return dataloader
 
+def get_data_loader(
+        model_name="teknium/OpenHermes-2.5-Mistral-7B",
+        cache_dir="/root/autodl-tmp",
+        dataset_name="Intel/orca_dpo_pairs",
+        batch_size=8,
+        shuffle=True,
+    ):
+        if model_name == "teknium/OpenHermes-2.5-Mistral-7B":
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            tokenizer.pad_token = tokenizer.eos_token
+            tokenizer.padding_side = "left"
 
+        if dataset_name == "Intel/orca_dpo_pairs":
+            dataset = load_dataset("Intel/orca_dpo_pairs")['train']  
+
+        dataset = imdb_pre_process(dataset, tokenizer)
+
+        dataloader = create_dataloader(
+            dataset=dataset,
+            collect_fn=get_imdb_collect_fn(tokenizer=tokenizer)
+        )
+
+        return dataloader
 
 if __name__ == "__main__":
-    dataset = load_dataset("Intel/orca_dpo_pairs")['train']
-    model_name = "teknium/OpenHermes-2.5-Mistral-7B"
-    # Save columns
-    # Tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "left"
-
-    dataset = imdb_pre_process(dataset, tokenizer)
-
-    dataloader = create_dataloader(
-        dataset=dataset,
-        collect_fn=get_imdb_collect_fn(tokenizer=tokenizer)
-    )
+   
+    dataloader = get_data_loader()
 
     model = AutoModelForCausalLM.from_pretrained(
         model_name,

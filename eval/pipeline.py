@@ -3,17 +3,19 @@ from peft import LoraConfig, PeftModel
 import torch
 from transformers import AutoModelForCausalLM
 
-if __name__ == 'main':
+from data.get_data_loader import get_data_loader
 
+
+def pipeline():
     model_name = "teknium/OpenHermes-2.5-Mistral-7B"
     new_model = "DPO_NeuralHermes-2.5-Mistral-7B"
-    cache_dir = "/root/autodl-tmp"
+    cache_dir = ""
 
     # Model to fine-tune
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=torch.float16,
-        load_in_4bit=True,
+        # load_in_4bit=True,
         cache_dir=cache_dir,
     )
 
@@ -31,9 +33,9 @@ if __name__ == 'main':
 
     model = PeftModel(model, peft_config)
 
-    # 将模型移动到目标设备
+    dataloader = get_data_loader(batch_size=1, shuffle=False)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
 
     for batch in dataloader:
         # 将 batch 数据转移到设备
