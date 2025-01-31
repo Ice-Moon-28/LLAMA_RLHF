@@ -1,0 +1,28 @@
+Evaluation completed. Metrics:
+eval_loss: 0.0000
+
+eval_runtime: 9.2409
+
+eval_samples_per_second: 1.4070
+
+eval_steps_per_second: 1.4070
+
+eval_rewards/chosen: -1.3990
+
+eval_rewards/rejected: -34.3711
+
+eval_rewards/accuracies: 1.0000
+
+eval_rewards/margins: 32.9722
+
+eval_logps/chosen: -111.3125
+
+eval_logps/rejected: -554.0000
+
+eval_logits/chosen: -2.4805
+
+eval_logits/rejected: -2.7539
+
+[1;34mwandb[0m: 
+[1;34mwandb[0m: 🚀 View run [33mDPO_NeuralHermes-2.5-Mistral-7B/checkpoint-500[0m at: [34mhttps://wandb.ai/lz101-rice-university/huggingface/runs/a5vph9dr[0m
+[1;34mwandb[0m: Find logs at: [1;35mwandb/run-20250131_054322-a5vph9dr/logs[0m

@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-from data.imdb import get_imdb_collect_fn, imdb_pre_process
+from dataset.imdb import get_imdb_collect_fn, imdb_pre_process
 
 model_name = "teknium/OpenHermes-2.5-Mistral-7B"
 new_model = "DPO_NeuralHermes-2.5-Mistral-7B"
@@ -55,7 +55,9 @@ def get_data_loader(
 
         dataloader = create_dataloader(
             dataset=dataset,
-            collect_fn=get_imdb_collect_fn(tokenizer=tokenizer)
+            collect_fn=get_imdb_collect_fn(tokenizer=tokenizer),
+            batch_size=batch_size,
+            shuffle=shuffle
         )
 
         return dataloader

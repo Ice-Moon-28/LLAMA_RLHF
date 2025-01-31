@@ -3,3 +3,6 @@ wandb/**
 models--teknium--OpenHermes-2.5-Mistral-7B/**
 Qwen2-0.5B-DPO/**
 logs/**
+*.pt
+**.pyc
+DPO_NeuralHermes-2.5-Mistral-7B/**

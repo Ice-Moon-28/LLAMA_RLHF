@@ -5,12 +5,11 @@ def get_imdb_collect_fn(tokenizer, max_prompt_length=1024, max_length=1536):
         prompt_texts = [item.get("prompt", "") for item in batch]  # 提取 prompt 字段
         chosen_texts = [item.get("chosen", "") for item in batch]  # 提取 chosen 字段
         rejected_texts = [item.get("rejected", "") for item in batch]  # 提取 rejected 字段
-
         # 分词并截断
         # 处理 prompt
         prompt_encodings = tokenizer(
             prompt_texts,
-            padding="max_length",
+            padding="longest",
             truncation=True,
             max_length=max_prompt_length,
             return_tensors="pt"  # 返回 PyTorch 张量
@@ -19,7 +18,7 @@ def get_imdb_collect_fn(tokenizer, max_prompt_length=1024, max_length=1536):
         # 处理 chosen
         chosen_texts_encodings = tokenizer(
             chosen_texts,
-            padding="max_length",
+            padding="longest",
             truncation=True,
             max_length=max_length - max_prompt_length,  # 剩余长度留给 completion
             return_tensors="pt"
@@ -28,21 +27,26 @@ def get_imdb_collect_fn(tokenizer, max_prompt_length=1024, max_length=1536):
         # 处理 rejected
         rejected_texts_encodings = tokenizer(
             rejected_texts,
-            padding="max_length",
+            padding="longest",
             truncation=True,
             max_length=max_length - max_prompt_length,  # 剩余长度留给 completion
             return_tensors="pt"
         )
-        
+
+        chosen_prompt_len = chosen_texts_encodings["input_ids"].shape[1]  # 计算 token 级别长度
+        rejected_prompt_len = rejected_texts_encodings["input_ids"].shape[1]  # 相同的 prompt 长度
+
         # 合并编码
         return {
             "chosen": {
                 "input_ids": torch.cat([prompt_encodings["input_ids"], chosen_texts_encodings["input_ids"]], dim=1),
                 "attention_mask": torch.cat([prompt_encodings["attention_mask"], chosen_texts_encodings["attention_mask"]], dim=1),
+                "completition_len": torch.tensor(chosen_prompt_len, dtype=torch.long) 
             },
             "rejected": {
                 "input_ids": torch.cat([prompt_encodings["input_ids"], rejected_texts_encodings["input_ids"]], dim=1),
                 "attention_mask": torch.cat([prompt_encodings["attention_mask"], rejected_texts_encodings["attention_mask"]], dim=1),
+                "completition_len": torch.tensor(rejected_prompt_len, dtype=torch.long) 
             }
         }
 

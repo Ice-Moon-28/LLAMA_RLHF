@@ -1,59 +1,35 @@
+from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
+from trl import DPOTrainer, DPOConfig
 
-from peft import LoraConfig, PeftModel
-import torch
-from transformers import AutoModelForCausalLM
-
-from data.get_data_loader import get_data_loader
-
-
-def pipeline():
-    model_name = "teknium/OpenHermes-2.5-Mistral-7B"
-    new_model = "DPO_NeuralHermes-2.5-Mistral-7B"
-    cache_dir = ""
-
-    # Model to fine-tune
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=torch.float16,
-        # load_in_4bit=True,
-        cache_dir=cache_dir,
+def evaluate(
+        model,
+        dataset,
+        tokenizer,
+        peft_config=None,    
+    ):
+    # 运行 DPOTrainer 的 evaluate 方法
+    training_args = DPOConfig(
+        per_device_eval_batch_size=16,
+        bf16=True,
+        beta=0.1,
+        max_prompt_length=1024,
+        max_length=1536,
+        log_level="debug",
+        seed=3047,
     )
 
-    model.config.use_cache = False
-
-
-    peft_config = LoraConfig(
-        r=16,
-        lora_alpha=16,
-        lora_dropout=0.05,
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules=['k_proj', 'gate_proj', 'v_proj', 'up_proj', 'q_proj', 'o_proj', 'down_proj']
+    dpo_trainer = DPOTrainer(
+        model,
+        args=training_args,
+        eval_dataset=dataset,
+        tokenizer=tokenizer,
+        peft_config=peft_config,
     )
 
-    model = PeftModel(model, peft_config)
+    eval_results = dpo_trainer.evaluate()
 
-    dataloader = get_data_loader(batch_size=1, shuffle=False)
+    # 打印评估结果
+    print("Evaluation Results:")
+    for key, value in eval_results.items():
+        print(f"{key}: {value:.4f}")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    for batch in dataloader:
-        # 将 batch 数据转移到设备
-        chosen = {
-            "input_ids": batch["chosen"]["input_ids"].to(device),
-            "attention_mask": batch["chosen"]["attention_mask"].to(device)
-        }
-
-        rejected = {
-            "input_ids": batch["rejected"]["input_ids"].to(device),
-            "attention_mask": batch["rejected"]["attention_mask"].to(device)
-        }
-
-        # 使用 PEFT 包装的模型进行前向传播
-        chosen_output = model(**chosen)
-        rejected_output = model(**rejected)
-
-        # 调试或其他操作
-        import pdb; pdb.set_trace()
-        print("Chosen Output:", chosen_output)
-        print("Rejected Output:", rejected_output)
