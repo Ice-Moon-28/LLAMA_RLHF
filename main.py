@@ -41,7 +41,7 @@ def train():
         sampling_probs=[0.7, 0.3]
     )
 
-    dataset = split_dataset(dataset, 0.9, 3047)
+    dataset = split_dataset(dataset, 1, 3047)
 
     train_dataset, eval_dataset = dataset['train'], dataset['test']
 
@@ -65,15 +65,15 @@ def train():
         gradient_checkpointing=True,
         learning_rate=5e-5,
         lr_scheduler_type="cosine",
-        max_steps=500,
+        max_steps=2000,
         # save_strategy="no",
         logging_steps=1,
         output_dir=new_model,
         optim="paged_adamw_32bit",
-        warmup_steps=50,
-        evaluation_strategy="steps",  # 每隔一定步数进行 eval
-        eval_steps=50,  # 例如每 50 步评估一次
-        per_device_eval_batch_size=16,
+        warmup_steps=200,
+        # evaluation_strategy="steps",  # 每隔一定步数进行 eval
+        # eval_steps=50,  # 例如每 50 步评估一次
+        # per_device_eval_batch_size=16,
         bf16=True,
         report_to="wandb",
         beta=0.1,
@@ -87,7 +87,7 @@ def train():
         model,
         args=training_args,
         train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
+        # eval_dataset=eval_dataset,
         tokenizer=tokenizer,
         peft_config=peft_config,
     )
