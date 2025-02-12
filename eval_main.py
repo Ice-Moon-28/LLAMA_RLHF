@@ -4,6 +4,7 @@ import torch
 import wandb
 
 from dataset.get_dataset import get_antropic_dataset, get_intel_imdb_dataset, split_dataset
+from eval.pipeline import evaluate
 from model.get_model import get_model
 from peft import LoraConfig, PeftConfig, PeftModel
 from trl import DPOTrainer, DPOConfig
@@ -22,57 +23,6 @@ new_model = "DPO_NeuralHermes-2.5-Mistral-7B/eval"
 cache_dir = "/root/autodl-tmp"
 
 
-def evaluate():
-    model, tokenizer = get_model(
-    model_name=model_name,
-        model_config={
-            "torch_dtype": torch.float16,
-            "load_in_4bit": True,
-            "cache_dir" :cache_dir,
-        },
-    )
-
-    dataset = get_intel_imdb_dataset(tokenizer, 'train').sample()
-    
-
-
-
-    # LoRA configuration
-    peft_config = LoraConfig(
-        r=16,
-        lora_alpha=16,
-        lora_dropout=0.05,
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules=['k_proj', 'gate_proj', 'v_proj', 'up_proj', 'q_proj', 'o_proj', 'down_proj']
-    )
-
-    # 7B ===> 500 M 训练参数
-
-    # Training arguments
-    training_args = DPOConfig(
-        output_dir=new_model,
-        per_device_eval_batch_size=16,
-        bf16=True,
-        report_to="wandb",
-        beta=0.1,
-        max_prompt_length=1024,
-        max_length=1536,
-        log_level="debug",
-        seed=3047,
-    )
-
-    dpo_trainer = DPOTrainer(
-        model,
-        args=training_args,
-        train_dataset=dataset,
-        eval_dataset=dataset,
-        tokenizer=tokenizer,
-        peft_config=peft_config,
-    )
-    # Evaluate model
-    dpo_trainer.evaluate()
-
 
 def evaluate_trained(new_model):
     # 1. 加载基础模型 & Tokenizer
@@ -89,7 +39,7 @@ def evaluate_trained(new_model):
     model = PeftModel.from_pretrained(model, new_model)
 
     ref_model, _ = get_model(
-        model_name=model_name,
+        model_name="teknium/OpenHermes-2.5-Mistral-7B",
         model_config={
             "torch_dtype": torch.float16,
             "load_in_4bit": True,
@@ -139,11 +89,90 @@ def evaluate_trained(new_model):
     for key, value in metrics.items():
         print(f"{key}: {value:.4f}\n")
 
+def load_trained(new_model):
+    # 1. 加载基础模型 & Tokenizer
+    model, tokenizer = get_model(
+        model_name=model_name,
+        model_config={
+            "torch_dtype": torch.float16,
+            "load_in_4bit": True,
+            "cache_dir": cache_dir,
+        },
+    )
 
+    # 3. 使用 `model` 直接加载 PeftModel
+    model = PeftModel.from_pretrained(model, new_model)
+
+    return model, tokenizer
 
 if __name__ == "__main__":
-    # evaluate()
 
-    evaluate_trained(
+    trained_model, tokenizer = load_trained(
         new_model="DPO_NeuralHermes-2.5-Mistral-7B/checkpoint-500"
     )
+
+    evaluate(
+        model="teknium/OpenHermes-2.5-Mistral-7B",
+        model_config={
+            "torch_dtype": torch.float16,
+            "load_in_4bit": True,
+            "cache_dir" :cache_dir,
+        },
+        dataset="antropic",
+        peft_config="DPO_NeuralHermes-2.5-Mistral-7B/checkpoint-500"
+    )
+
+
+
+    # model, tokenizer = get_model(
+    #     model_name="teknium/OpenHermes-2.5-Mistral-7B",
+    #     model_config={
+    #         "torch_dtype": torch.float16,
+    #         "load_in_4bit": True,
+    #         "cache_dir" :cache_dir,
+    #     },
+    # )
+
+    # output = generate_response(
+    #     model=model,
+    #     tokenizer=tokenizer,
+    #     input_text="The biggest mountain in the world is?",
+    #     max_length=1000
+    # )
+
+    # print(output)
+
+    # intel_dataset = get_intel_imdb_dataset(tokenizer, 'train')[:10]
+
+    # prompts = intel_dataset['prompt']
+
+    # chosen = intel_dataset['chosen']
+
+    # rejected = intel_dataset['rejected']
+
+    # for i in range(10):
+
+    #     prompt = prompts[i]
+
+    #     output = generate_response(
+    #         model=model,
+    #         tokenizer=tokenizer,
+    #         input_text=prompt,
+    #         max_length=1000
+    #     )
+
+    #     trained_output = generate_response(
+    #         model=trained_model,
+    #         tokenizer=tokenizer,
+    #         input_text=prompt,
+    #         max_length=1000
+    #     )
+
+    #     print(
+    #         f"output: {output}",
+    #         f"trained output: {trained_output}",
+    #     )
+
+
+
+

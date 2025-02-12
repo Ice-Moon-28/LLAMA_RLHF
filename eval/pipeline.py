@@ -1,35 +1,91 @@
 from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
-from trl import DPOTrainer, DPOConfig
+import torch
+from tqdm import tqdm
+
+from dataset.get_dataset import get_antropic_dataset
+from model.get_model import get_model
+from eval.metrics.rouge_score import compute_rouge_bert_metrics_batch
+from util.generate_text import generate_response
+from torch.utils.data import DataLoader
+from settings import device
 
 def evaluate(
         model,
+        model_config,
         dataset,
-        tokenizer,
         peft_config=None,    
     ):
-    # 运行 DPOTrainer 的 evaluate 方法
-    training_args = DPOConfig(
-        per_device_eval_batch_size=16,
-        bf16=True,
-        beta=0.1,
-        max_prompt_length=1024,
-        max_length=1536,
-        log_level="debug",
-        seed=3047,
+
+    model, tokenizer = get_model(
+        model_name=model,
+        model_config=model_config
     )
 
-    dpo_trainer = DPOTrainer(
-        model,
-        args=training_args,
-        eval_dataset=dataset,
-        tokenizer=tokenizer,
-        peft_config=peft_config,
+    model.to(device)
+
+    if dataset == 'antropic':
+        eval_dataset = get_antropic_dataset(tokenizer=tokenizer)
+    
+    def tokenize_function(examples):
+        prompts = [example["prompt"] for example in examples]
+
+        chosen = [example["chosen"] for example in examples]
+
+        rejected = [example["rejected"] for example in examples]
+
+        tokenized_prompt = tokenizer(
+            prompts,
+            padding=True,
+            truncation=True,
+            max_length=1024,
+            return_tensors="pt"
+        )
+
+        tokenized_prompt = tokenizer(prompts,padding=True,truncation=True,max_length=1024,return_tensors="pt")
+
+        # tokenized_chosen = tokenizer(
+        #     examples["chosen"],
+        #     padding=True,
+        #     truncation=True,
+        #     max_length=512,
+        #     return_tensors="pt"
+        # )
+
+        # tokenized_rejected = tokenizer(
+        #     examples["rejected"],
+        #     padding=True,
+        #     truncation=True,
+        #     max_length=512,
+        #     return_tensors="pt"
+        # )
+
+        return {
+            "prompt": {
+                "input_ids": tokenized_prompt["input_ids"],
+                "attention_mask": tokenized_prompt["attention_mask"],
+            },
+            "chosen": chosen,
+            "rejected": rejected,
+        }
+
+    eval_dataloader = DataLoader(
+        eval_dataset, 
+        batch_size=16, 
+        shuffle=False, 
+        collate_fn=tokenize_function
     )
 
-    eval_results = dpo_trainer.evaluate()
+    if peft_config:
+        model = PeftModel.from_pretrained(model, peft_config)
 
-    # 打印评估结果
-    print("Evaluation Results:")
-    for key, value in eval_results.items():
-        print(f"{key}: {value:.4f}")
+    for batch in tqdm(eval_dataloader, desc="Generating Responses"):
 
+        responses = generate_response(
+            example=batch,
+            model=model,
+            tokenizer=tokenizer,
+        )
+
+        import pdb; pdb.set_trace()
+
+        compute_rouge_bert_metrics_batch(responses)

@@ -7,3 +7,4 @@ logs/**
 **.pyc
 DPO_NeuralHermes-2.5-Mistral-7B/**
 DPO_NeuralHermes-2.5-Mistral-7B_WITH_TWO_DATASET/**
+DPO_NeuralHermes-2.5-Mistral-7B_One_dataset_500/**

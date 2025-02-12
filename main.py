@@ -1,6 +1,6 @@
 import torch
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
 from datasets import load_dataset
 from peft import LoraConfig
 from trl import DPOTrainer, DPOConfig
@@ -17,8 +17,8 @@ wb_token = '1c1fa66d79864363e5f33bb705a768da6cf094e5'
 wandb.login(key=wb_token)
 from transformers import default_data_collator
 
-model_name = "teknium/OpenHermes-2.5-Mistral-7B"
-new_model = "DPO_NeuralHermes-2.5-Mistral-7B_WITH_TWO_DATASET"
+model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+new_model = "DPO_NeuralHermes-2.5-Mistral-7B_Two_dataset_500"
 cache_dir = "/root/autodl-tmp"
 
 
@@ -37,11 +37,11 @@ def train():
     antropic = get_antropic_dataset(tokenizer, 'train')
 
     dataset = ProbabilisticMultiDataset(
-        datasets=[intel_dataset, antropic],
-        sampling_probs=[0.7, 0.3]
+        datasets=[antropic],
+        sampling_probs=[1]
     )
 
-    dataset = split_dataset(dataset, 1, 3047)
+    dataset = split_dataset(dataset, 0.995, 3047)
 
     train_dataset, eval_dataset = dataset['train'], dataset['test']
 
@@ -60,37 +60,45 @@ def train():
 
     # Training arguments
     training_args = DPOConfig(
-        per_device_train_batch_size=4,
-        gradient_accumulation_steps=4,
+        per_device_train_batch_size=2,
+        gradient_accumulation_steps=2,
         gradient_checkpointing=True,
-        learning_rate=5e-5,
+        learning_rate=2e-4,
         lr_scheduler_type="cosine",
-        max_steps=2000,
+        max_steps=500,
         # save_strategy="no",
         logging_steps=1,
         output_dir=new_model,
         optim="paged_adamw_32bit",
-        warmup_steps=200,
-        # evaluation_strategy="steps",  # 每隔一定步数进行 eval
-        # eval_steps=50,  # 例如每 50 步评估一次
-        # per_device_eval_batch_size=16,
+        warmup_steps=100,
+        evaluation_strategy="steps",  # 每隔一定步数进行 eval
+        eval_steps=500,  # 例如每 100 步评估一次
+        per_device_eval_batch_size=16,
         bf16=True,
         report_to="wandb",
-        beta=0.1,
         max_prompt_length=1024,
         max_length=1536,
         log_level="debug",
         seed=3047,
+        # kl_penalty = 0.05,  # 控制策略变化范围
+        # kl_target = 0.1,  # 目标 KL 散度
+        # cliprange=0.1,  # 限制过大的梯度变化
+        beta=0.01,
+        max_grad_norm=1.0,
+        # beta=0.2,
     )
+
+    print(training_args.max_grad_norm)
 
     dpo_trainer = DPOTrainer(
         model,
         args=training_args,
         train_dataset=train_dataset,
-        # eval_dataset=eval_dataset,
+        eval_dataset=eval_dataset,
         tokenizer=tokenizer,
         peft_config=peft_config,
     )
+
     # Fine-tune model with DPO
     dpo_trainer.train()
 
